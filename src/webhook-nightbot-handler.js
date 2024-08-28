@@ -1,30 +1,76 @@
-import { AbstractWebhookHandler } from 'webhook-abstract-handler.js';
+import { AbstractWebhookHandler } from 'webhook-handler-interface.js';
+import { Logger } from './logger';
+
+const express = require('express');
 
 export class NightbotServiceHandler extends AbstractWebhookHandler {
-
     constructor() {
-        super();
+        this.service = express();
+        this.service.post('./webhooks', this.#receive);
+        this.subscribers = new map();
+
+        this.#bind();
+    }
+    
+    authenticate() {
+        
     }
 
-    parseRequest(req) {
-        throw new Error('Method "parseRequest()" must be implemented.');
+    subscribe(event, subscriber) {
+        if (!this.subscribers.has(event))
+            this.subscribers.set(event, new set());
+
+        this.subscribers.get(event).add(subscriber);
     }
 
-    validate(data) {
-        if (!data || !data.type) {
-            throw new Error('Invalid webhook data');
+    unsubscribe(event, subscriber) {
+        const logger = new Logger();
+
+        if (!this.subscribers.has(event)) {
+            logger.log(`trying to unsubscribe for unexisting event: ${event}. unsubscribe was not executed`);
+
+            return;
         }
+
+        if (!this.subscribers.get(event).has(subscriber)) {
+            logger.log(`trying to unsubscribe for unexisting listener: ${subscriber.name()}. unsubscribe was not executed`);
+
+            return;
+        }
+
+        this.subscribers.get(event).delete(subscriber);
     }
 
-    verify(req) {
-        throw new Error('Method "verify()" must be implemented.');
+    //TODO: Implement receive logic to handle POST requests from nightbot API
+    #receive(request, response) {
+
     }
 
-    processEvent(data) {
-        throw new Error('Method "processEvent()" must be implemented.');
+    #notify(event) {
+        if (this.#isEmpty(event)) {
+            const logger = new Logger();
+
+            logger.log(`notifying for unexisting event: ${event}. No notification was sent`);
+            return;
+        }
+
+        const eventSubscribers = this.subscribers.get(event);
+
+        eventSubscribers.forEach(subscriber => {
+            subscriber.execute();
+        });
     }
 
-    respond(res, status, message) {
-        throw new Error('Method "respond()" must be implemented.');
+    #isEmpty(event) {
+        const eventSubscribers = this.subscribers.get(event);
+
+        return (
+            eventSubscribers === null || eventSubscribers === undefined || (Array.isArray(value) && value.length === 0)
+        );
+    }
+
+    //TODO: Bind methods to class in this body
+    #bind() {
+
     }
 }

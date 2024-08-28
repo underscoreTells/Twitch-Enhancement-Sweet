@@ -1,21 +1,13 @@
 export class WebhookInterface {
-    parseRequest(req) {
-        throw new Error('Method "parseRequest()" must be implemented.');
+    authenticate() {
+        throw new Error("Method 'authenticate()' must be implemented.");
     }
 
-    validate(data) {
-        throw new Error('Method "validate()" must be implemented.');
+    subscribe() {
+        throw new Error("Method 'subscribe()' must be implemented.");
     }
 
-    verify(req) {
-        throw new Error('Method "verify()" must be implemented.');
-    }
-
-    processEvent(data) {
-        throw new Error('Method "processEvent()" must be implemented.');
-    }
-
-    respond(res, status, message) {
-        throw new Error('Method "respond()" must be implemented.');
+    unsubscribe() {
+        throw new Error("Method 'unsubscribe()' must be implemented.");
     }
 }
