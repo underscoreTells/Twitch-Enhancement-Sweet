@@ -1,5 +1,7 @@
 import { AbstractWebhookHandler } from 'webhook-handler-interface.js';
 import { SubscriptionService } from './subscription-service';
+import { OAuth2AuthService } from './oauth2-auth-service';
+import {nightbotClientID, nightbotClientSecret, nightbotRedirectURL, nightbotTokenURL} from '../utils/constants'
 
 const express = require('express');
 
@@ -8,7 +10,8 @@ export class NightbotServiceHandler extends AbstractWebhookHandler {
         this.service = express();
         this.service.post('./webhooks', this.#receive);
         this.subscriptionService = new SubscriptionService();
-
+        
+        this.#newAuthService();
         this.#bind();
     }
     
@@ -39,5 +42,16 @@ export class NightbotServiceHandler extends AbstractWebhookHandler {
     //TODO: Bind methods to class in this body
     #bind() {
 
+    }
+
+    //Method to instantiate a new auth service - declutters constructor
+    #newAuthService() {
+        this.authService = new OAuth2AuthService({
+            clientId: nightbotClientID,
+            clientSecret: nightbotClientSecret,
+            tokenUrl: nightbotTokenURL,
+            redirectUri: nightbotRedirectURL,
+            scope: 'your-required-scope',
+        });
     }
 }
