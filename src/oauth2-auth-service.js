@@ -1,4 +1,5 @@
 import { AuthServiceInterface } from "./auth-service-interface";
+import { Logger } from "./logger";
 
 export class OAuth2AuthService extends AuthServiceInterface {
     constructor({ clientId, clientSecret, tokenUrl, redirectUri, scope }) {
@@ -46,7 +47,7 @@ export class OAuth2AuthService extends AuthServiceInterface {
             this.refreshToken = data.refresh_token;
             this.tokenExpiresIn = Date.now() + data.expires_in * 1000;
         } catch (error) {
-            this.handleAuthError(error);
+            this.#handleAuthError(error);
         }
     }
 
@@ -54,7 +55,9 @@ export class OAuth2AuthService extends AuthServiceInterface {
         return Date.now() >= this.tokenExpiresIn;
     }
 
-    handleAuthError(error) {
-        console.error('Authentication Error:', error);
+    #handleAuthError(error) {
+        const logger = new Logger();
+
+        logger.log('authentication error');
     }
 }
