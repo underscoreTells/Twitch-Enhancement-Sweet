@@ -13,7 +13,7 @@ import {
 export class NightbotServiceHandler implements WebhookInterface {
 	private server: Application;
 	private subscriptionService: SubscriptionService;
-	private authService: OAuth2AuthService;
+	private authService: OAuth2AuthService | null = null;
 	private commandToken: string | null = null;
 
 	constructor(expressApp: Application) {
@@ -29,6 +29,13 @@ export class NightbotServiceHandler implements WebhookInterface {
 
 	//TODO: Implement authetication logic with Nighbot
 	async authenticate(): Promise<void> {
+		if (this.authService == null) {
+			Logger.getInstance().log(
+				"authService is null when trying to authenticate nightbot",
+			);
+			return;
+		}
+
 		try {
 			this.commandToken = await this.authService.getAccessToken("commands");
 		} catch (error) {
