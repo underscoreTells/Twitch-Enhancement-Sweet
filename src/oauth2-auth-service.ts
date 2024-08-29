@@ -71,7 +71,8 @@ export class OAuth2AuthService implements AuthServiceInterface {
 
 	private handleAuthError(error: unknown): void {
 		const logger = Logger.getInstance();
-		logger.log("authentication error");
+		logger.logError("authentication error");
+		process.exit(1);
 	}
 
 	private bind(): void {

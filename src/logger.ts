@@ -19,9 +19,13 @@ export class Logger {
 	}
 
 	log(message: string): void {
-		const timestamp = new Date().toISOString();
-		this.logs.push(`${timestamp}: ${message}`);
+		const timestamp = this.logPreWork(message);
 		console.log(`${timestamp}: ${message}`);
+	}
+
+	logError(message: string): void {
+		const timestamp = this.logPreWork(message);
+		console.error(`${timestamp}: ${message}`);
 	}
 
 	clearLogs(): void {
@@ -30,5 +34,12 @@ export class Logger {
 
 	getLogs(): string[] {
 		return this.logs;
+	}
+
+	private logPreWork(message: string): string {
+		const timestamp = new Date().toISOString();
+		this.logs.push(`${timestamp}: ${message}`);
+
+		return timestamp;
 	}
 }

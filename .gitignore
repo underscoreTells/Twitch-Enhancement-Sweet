@@ -8,6 +8,10 @@ tsconfig.json
 
 # Config files
 .editorconfig
+jest.config.js
 
 # JavaScript output
 lib/
+
+# Environment
+.env

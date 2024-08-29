@@ -7,7 +7,7 @@ import {
 	nightbotClientID,
 	nightbotClientSecret,
 	nightbotTokenURL,
-	nightbotRedirectURL,
+	nightbotRedirectURI,
 } from "../utils/constants";
 
 export class NightbotServiceHandler implements WebhookInterface {
@@ -30,7 +30,7 @@ export class NightbotServiceHandler implements WebhookInterface {
 	//TODO: Implement authetication logic with Nighbot
 	async authenticate(): Promise<void> {
 		if (this.authService == null) {
-			Logger.getInstance().log(
+			Logger.getInstance().logError(
 				"authService is null when trying to authenticate nightbot",
 			);
 			return;
@@ -40,7 +40,7 @@ export class NightbotServiceHandler implements WebhookInterface {
 			this.commandToken = await this.authService.getAccessToken("commands");
 		} catch (error) {
 			const logger = Logger.getInstance();
-			logger.log("authentication error for nightbot"); // TODO: Log error info
+			logger.logError("authentication error for nightbot"); // TODO: Log error info
 		}
 	}
 
@@ -65,12 +65,16 @@ export class NightbotServiceHandler implements WebhookInterface {
 
 	//Create new auth service - declutters constructor
 	private newAuthService(): void {
-		this.authService = new OAuth2AuthService(
-			nightbotClientID,
-			nightbotClientSecret,
-			nightbotTokenURL,
-			nightbotRedirectURL,
-		);
+		try {
+			this.authService = new OAuth2AuthService(
+				nightbotClientID,
+				nightbotClientSecret,
+				nightbotTokenURL,
+				nightbotRedirectURI,
+			);
+		} catch (error) {
+			Logger.getInstance().logError(`Undefined environment variable: ${error}`);
+		}
 	}
 
 	//TODO: Bind methods to class in this body

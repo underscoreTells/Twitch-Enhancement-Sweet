@@ -26,14 +26,14 @@ export class SubscriptionService {
 		const logger = Logger.getInstance();
 
 		if (!this.subscribers.has(event)) {
-			logger.log(
+			logger.logError(
 				`Trying to unsubscribe from unexisting event: ${event}. Unsubscribe was not executed`,
 			);
 			return;
 		}
 
 		if (!this.subscribers.get(event)?.has(subscriber)) {
-			logger.log(
+			logger.logError(
 				`Trying to unsubscribe from unexisting listener: ${subscriber.name()}. Unsubscribe was not executed`,
 			);
 			return;
