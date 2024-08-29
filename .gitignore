@@ -4,3 +4,10 @@ node_modules/
 # JSON
 package-lock.json
 package.json
+tsconfig.json
+
+# Config files
+.editorconfig
+
+# JavaScript output
+lib/

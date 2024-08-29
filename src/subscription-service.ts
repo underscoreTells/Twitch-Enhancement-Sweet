@@ -1,63 +1,82 @@
 import { Logger } from "./logger";
 
+type Subscriber = {
+	name: () => string;
+	execute: () => void;
+};
+
 export class SubscriptionService {
-    constructor() {
-        this.subscribers = new Map();
-    }
+	private subscribers: Map<string, Set<Subscriber>>;
 
-    subscribe(event, subscriber) {
-        if (!this.subscribers.has(event)) {
-            this.subscribers.set(event, new Set());
-        }
-        this.subscribers.get(event).add(subscriber);
-    }
+	constructor() {
+		this.subscribers = new Map<string, Set<Subscriber>>();
+	}
 
-    // Method to unsubscribe from an event
-    unsubscribe(event, subscriber) {
-        const logger = new Logger();
+	subscribe(event: string, subscriber: Subscriber): void {
+		if (!this.subscribers.has(event)) {
+			this.subscribers.set(event, new Set<Subscriber>());
+		}
+		this.subscribers.get(event)?.add(subscriber);
+	}
 
-        if (!this.subscribers.has(event)) {
-            logger.log(`trying to unsubscribe for unexisting event: ${event}. unsubscribe was not executed`);
+	// Method to unsubscribe from an event
+	unsubscribe(event: string, subscriber: Subscriber): void {
+		const logger = new Logger();
 
-            return;
-        }
+		if (!this.subscribers.has(event)) {
+			logger.log(
+				`Trying to unsubscribe from unexisting event: ${event}. Unsubscribe was not executed`,
+			);
+			return;
+		}
 
-        if (!this.subscribers.get(event).has(subscriber)) {
-            logger.log(`trying to unsubscribe for unexisting listener: ${subscriber.name()}. unsubscribe was not executed`);
+		if (!this.subscribers.get(event)?.has(subscriber)) {
+			logger.log(
+				`Trying to unsubscribe from unexisting listener: ${subscriber.name()}. Unsubscribe was not executed`,
+			);
+			return;
+		}
 
-            return;
-        }
+		const subscriberSet = this.subscribers.get(event);
 
-        let subscriberSet = this.subscribers.get(event);
-        subscriberSet.delete(subscriber);
+		if (subscriberSet !== undefined) {
+			subscriberSet.delete(subscriber);
 
-        // If the set is empty, remove the event from the map
-        if (subscriberSet.size === 0) {
-            this.subscribers.delete(event);
-        }
-        
-    }
+			// If the set is empty, remove the event from the map
+			if (subscriberSet.size === 0) {
+				this.subscribers.delete(event);
+			}
 
-    notify(event) {
-        if (this.#isEmpty(event)) {
-            const logger = new Logger();
+			return;
+		}
 
-            logger.log(`notifying for unexisting event: ${event}. No notification was sent`);
-            return;
-        }
+		logger.log("tried to unsubscribe from undefined subscriber set");
+	}
 
-        const eventSubscribers = this.subscribers.get(event);
+	notify(event: string): void {
+		const logger = new Logger();
 
-        eventSubscribers.forEach(subscriber => {
-            subscriber.execute();
-        });
-    }
+		if (this.isEmpty(event)) {
+			logger.log(
+				`Notifying for unexisting event: ${event}. No notification was sent`,
+			);
+			return;
+		}
 
-    #isEmpty(event) {
-        const eventSubscribers = this.subscribers.get(event);
+		const eventSubscribers = this.subscribers.get(event);
 
-        return (
-            eventSubscribers === null || eventSubscribers === undefined || (Array.isArray(value) && value.length === 0)
-        );
-    }
+		if (eventSubscribers !== undefined) {
+			for (const subscriber of eventSubscribers) subscriber.execute();
+		}
+	}
+
+	private isEmpty(event: string): boolean {
+		const eventSubscribers = this.subscribers.get(event);
+
+		return (
+			eventSubscribers === null ||
+			eventSubscribers === undefined ||
+			(eventSubscribers instanceof Set && eventSubscribers.size === 0)
+		);
+	}
 }
