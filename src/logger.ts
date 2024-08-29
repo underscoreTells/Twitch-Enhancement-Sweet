@@ -1,25 +1,34 @@
 export class Logger {
-    constructor() {
-        if (Logger.instance) {
-            return Logger.instance;
-        }
-        Logger.instance = this;
+	private static instance: Logger;
+	private logs: string[];
 
-        // Initialize the log storage
-        this.logs = [];
-    }
+	private constructor() {
+		this.log = this.log.bind(this);
+		this.clearLogs = this.clearLogs.bind(this);
+		this.getLogs = this.getLogs.bind(this);
 
-    log(message) {
-        const timestamp = new Date().toISOString();
-        this.logs.push(`${timestamp}: ${message}`);
-        console.log(`${timestamp}: ${message}`);
-    }
+		// Initialize the log storage
+		this.logs = [];
+	}
 
-    getLogs() {
-        return this.logs;
-    }
+	public static getInstance(): Logger {
+		if (!Logger.instance) {
+			Logger.instance = new Logger();
+		}
+		return Logger.instance;
+	}
 
-    clearLogs() {
-        this.logs = [];
-    }
+	log(message: string): void {
+		const timestamp = new Date().toISOString();
+		this.logs.push(`${timestamp}: ${message}`);
+		console.log(`${timestamp}: ${message}`);
+	}
+
+	clearLogs(): void {
+		this.logs = [];
+	}
+
+	getLogs(): string[] {
+		return this.logs;
+	}
 }

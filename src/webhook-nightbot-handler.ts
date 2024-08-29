@@ -1,64 +1,78 @@
-import { WebhookInterface } from 'webhook-handler-interface.js';
-import { SubscriptionService } from './subscription-service';
-import { OAuth2AuthService } from './oauth2-auth-service';
-import { nighbotClientID, nightbotClientSecret, nightbotTokenURL, nightbotRedirectURL } from '../utils/constants'
-import { Logger } from './logger';
+import type { WebhookInterface } from "./webhook-handler-interface";
+import { type Subscriber, SubscriptionService } from "./subscription-service";
+import { OAuth2AuthService } from "./oauth2-auth-service";
+import type { Request, Response, Application } from "express";
+import { Logger } from "./logger";
+import {
+	nightbotClientID,
+	nightbotClientSecret,
+	nightbotTokenURL,
+	nightbotRedirectURL,
+} from "../utils/constants";
 
-export class NightbotServiceHandler extends WebhookInterface {
-    constructor(expressApp) {
-        this.server = expressApp;
-        this.subscriptionService = new SubscriptionService();
+export class NightbotServiceHandler implements WebhookInterface {
+	private server: Application;
+	private subscriptionService: SubscriptionService;
+	private authService: OAuth2AuthService;
+	private commandToken: string | null = null;
 
-        this.server.post('./nightbot-webhooks', this.#receive(req, res));
-        
-        this.#newAuthService();
-        this.#bind();
-    }
-    
-    //TODO: Implement authetication logic with Nighbot
-    async authenticate() {
-        try {
-            this.commandToken = await this.authService.getAccessToken('commands');
-        }
+	constructor(expressApp: Application) {
+		this.bind();
 
-        catch (error) {
-            const logger = new Logger();
+		this.server = expressApp;
+		this.subscriptionService = new SubscriptionService();
 
-            logger.log('authentication error for nightbot'); //TODO: Log error info
-        }
-    }
+		this.server.post("/nightbot-webhooks", this.receive);
 
-    subscribe(event, subscriber) {
-        this.subscriptionService.subscribe(event, subscriber);
-    }
+		this.newAuthService();
+	}
 
-    unsubscribe(event, subscriber) {
-        this.subscriptionService.unsubscribe(event, subscriber);
-    }
+	//TODO: Implement authetication logic with Nighbot
+	async authenticate(): Promise<void> {
+		try {
+			this.commandToken = await this.authService.getAccessToken("commands");
+		} catch (error) {
+			const logger = Logger.getInstance();
+			logger.log("authentication error for nightbot"); // TODO: Log error info
+		}
+	}
 
-    //TODO: Implement receive logic to handle POST requests from nightbot API
-    #receive(request, response) {
-        //TODO
+	subscribe(event: string, subscriber: Subscriber): void {
+		this.subscriptionService.subscribe(event, subscriber);
+	}
 
-        this.#notify("event");
-    }
+	unsubscribe(event: string, subscriber: Subscriber): void {
+		this.subscriptionService.unsubscribe(event, subscriber);
+	}
 
-    #notify(event) {
-        this.subscriptionService.notify(event);
-    }
+	//TODO: Implement receive logic to handle POST requests from nightbot API
+	private receive(request: Request, response: Response): void {
+		//TODO
 
-    //Create new auth service - declutters constructor
-    #newAuthService() {
-        this.authService = new OAuth2AuthService({
-            clientId: nighbotClientID,
-            clientSecret: nightbotClientSecret,
-            tokenUrl: nightbotTokenURL,
-            redirectUri: nightbotRedirectURL,
-        });
-    }
+		this.notify("event");
+	}
 
-    //TODO: Bind methods to class in this body
-    #bind() {
+	private notify(event: string): void {
+		this.subscriptionService.notify(event);
+	}
 
-    }
+	//Create new auth service - declutters constructor
+	private newAuthService(): void {
+		this.authService = new OAuth2AuthService(
+			nightbotClientID,
+			nightbotClientSecret,
+			nightbotTokenURL,
+			nightbotRedirectURL,
+		);
+	}
+
+	//TODO: Bind methods to class in this body
+	private bind(): void {
+		this.authenticate = this.authenticate.bind(this);
+		this.subscribe = this.subscribe.bind(this);
+		this.unsubscribe = this.unsubscribe.bind(this);
+		this.receive = this.receive.bind(this);
+		this.notify = this.notify.bind(this);
+		this.newAuthService = this.newAuthService.bind(this);
+	}
 }

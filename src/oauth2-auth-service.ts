@@ -1,62 +1,83 @@
-import { AuthServiceInterface } from "./auth-service-interface";
+import type { AuthServiceInterface } from "./auth-service-interface";
 import { Logger } from "./logger";
 
-export class OAuth2AuthService extends AuthServiceInterface {
-    constructor({ clientId, clientSecret, tokenUrl, redirectUri }) {
-        this.clientId = clientId;
-        this.clientSecret = clientSecret;
-        this.tokenUrl = tokenUrl;
-        this.redirectUri = redirectUri;
+export class OAuth2AuthService implements AuthServiceInterface {
+	private clientId: string;
+	private clientSecret: string;
+	private tokenUrl: string;
+	private redirectUri: string;
+	private accessToken: string | null;
+	private refreshToken: string | null;
+	private tokenExpiresIn: number | null;
 
-        this.accessToken = null;
-        this.refreshToken = null;
-        this.tokenExpiresIn = null;
-    }
+	constructor(
+		clientId: string,
+		clientSecret: string,
+		tokenUrl: string,
+		redirectUri: string,
+	) {
+		this.bind();
 
-    async getAccessToken(scope) {
-        if (!this.accessToken || this.isTokenExpired()) {
-            await this.refreshToken();
-        }
-        return this.accessToken;
-    }
+		this.clientId = clientId;
+		this.clientSecret = clientSecret;
+		this.tokenUrl = tokenUrl;
+		this.redirectUri = redirectUri;
 
-    async refreshToken(scope) {
-        const params = new URLSearchParams();
-        params.append('client_id', this.clientId);
-        params.append('client_secret', this.clientSecret);
-        params.append('grant_type', 'client_credentials');
-        params.append('redirect_uri', this.redirectUri);
-        params.append('scope', scope);
+		this.accessToken = null;
+		this.refreshToken = null;
+		this.tokenExpiresIn = null;
+	}
 
-        try {
-            const response = await fetch(this.tokenUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: params,
-            });
+	async getAccessToken(scope: string): Promise<string | null> {
+		if (!this.accessToken || this.isTokenExpired()) {
+			await this.refreshAccessToken(scope);
+		}
+		return this.accessToken;
+	}
 
-            if (!response.ok) {
-                throw new Error('Failed to refresh token');
-            }
+	async refreshAccessToken(scope: string): Promise<void> {
+		const params = new URLSearchParams();
+		params.append("client_id", this.clientId);
+		params.append("client_secret", this.clientSecret);
+		params.append("grant_type", "client_credentials");
+		params.append("redirect_uri", this.redirectUri);
+		params.append("scope", scope);
 
-            const data = await response.json();
-            this.accessToken = data.access_token;
-            this.refreshToken = data.refresh_token;
-            this.tokenExpiresIn = Date.now() + data.expires_in * 1000;
-        } catch (error) {
-            this.#handleAuthError(error);
-        }
-    }
+		try {
+			const response = await fetch(this.tokenUrl, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/x-www-form-urlencoded",
+				},
+				body: params,
+			});
 
-    isTokenExpired() {
-        return Date.now() >= this.tokenExpiresIn;
-    }
+			if (!response.ok) {
+				throw new Error("Failed to refresh token");
+			}
 
-    #handleAuthError(error) {
-        const logger = new Logger();
+			const data = await response.json();
+			this.accessToken = data.access_token;
+			this.refreshToken = data.refresh_token;
+			this.tokenExpiresIn = Date.now() + data.expires_in * 1000;
+		} catch (error) {
+			this.handleAuthError(error);
+		}
+	}
 
-        logger.log('authentication error');
-    }
+	isTokenExpired(): boolean {
+		return Date.now() >= (this.tokenExpiresIn ?? 0);
+	}
+
+	private handleAuthError(error: unknown): void {
+		const logger = Logger.getInstance();
+		logger.log("authentication error");
+	}
+
+	private bind(): void {
+		this.getAccessToken = this.getAccessToken.bind(this);
+		this.refreshAccessToken = this.refreshAccessToken.bind(this);
+		this.isTokenExpired = this.isTokenExpired.bind(this);
+		this.handleAuthError = this.handleAuthError.bind(this);
+	}
 }

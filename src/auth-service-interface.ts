@@ -1,5 +1,5 @@
 export interface AuthServiceInterface {
-	getAccessToken(): Promise<void>;
-	refreshToken(): Promise<void>;
-	handleAuthError(error: Error): void;
+	getAccessToken(scope: string): Promise<string | null>;
+	refreshAccessToken(scope: string): Promise<void>;
+	isTokenExpired(): boolean;
 }

@@ -1,6 +1,6 @@
 import { Logger } from "./logger";
 
-type Subscriber = {
+export type Subscriber = {
 	name: () => string;
 	execute: () => void;
 };
@@ -9,6 +9,8 @@ export class SubscriptionService {
 	private subscribers: Map<string, Set<Subscriber>>;
 
 	constructor() {
+		this.bind();
+
 		this.subscribers = new Map<string, Set<Subscriber>>();
 	}
 
@@ -21,7 +23,7 @@ export class SubscriptionService {
 
 	// Method to unsubscribe from an event
 	unsubscribe(event: string, subscriber: Subscriber): void {
-		const logger = new Logger();
+		const logger = Logger.getInstance();
 
 		if (!this.subscribers.has(event)) {
 			logger.log(
@@ -54,7 +56,7 @@ export class SubscriptionService {
 	}
 
 	notify(event: string): void {
-		const logger = new Logger();
+		const logger = Logger.getInstance();
 
 		if (this.isEmpty(event)) {
 			logger.log(
@@ -78,5 +80,12 @@ export class SubscriptionService {
 			eventSubscribers === undefined ||
 			(eventSubscribers instanceof Set && eventSubscribers.size === 0)
 		);
+	}
+
+	private bind(): void {
+		this.subscribe = this.subscribe.bind(this);
+		this.unsubscribe = this.unsubscribe.bind(this);
+		this.notify = this.notify.bind(this);
+		this.isEmpty = this.isEmpty.bind(this);
 	}
 }

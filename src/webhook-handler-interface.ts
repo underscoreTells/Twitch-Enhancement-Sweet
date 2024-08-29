@@ -1,19 +1,7 @@
-export class WebhookInterface {
-    constructor() {
-        if (new.target === WebhookInterface)
-            throw new Error("Cannot instantiate an interface directly");
-            
-    }
+import type { Subscriber } from "./subscription-service";
 
-    authenticate() {
-        throw new Error("Method 'authenticate()' must be implemented.");
-    }
-
-    subscribe() {
-        throw new Error("Method 'subscribe()' must be implemented.");
-    }
-
-    unsubscribe() {
-        throw new Error("Method 'unsubscribe()' must be implemented.");
-    }
+export interface WebhookInterface {
+	authenticate(): void;
+	subscribe(event: string, subscriber: Subscriber): void;
+	unsubscribe(event: string, subscriber: Subscriber): void;
 }
