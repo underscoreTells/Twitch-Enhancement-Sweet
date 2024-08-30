@@ -1,7 +1,7 @@
 import type { AuthServiceInterface } from "./auth-service-interface";
 import { Logger } from "./logger";
 
-export class OAuth2AuthService implements AuthServiceInterface {
+export class OAuth2AuthService /*implements AuthServiceInterface*/ {
 	private clientId: string;
 	private clientSecret: string;
 	private tokenUrl: string;
@@ -26,11 +26,14 @@ export class OAuth2AuthService implements AuthServiceInterface {
 		this.accessToken = null;
 		this.refreshToken = null;
 		this.tokenExpiresIn = null;
+		console.log("constructor called");
 	}
 
 	async getAccessToken(scope: string): Promise<string | null> {
+		console.log("getAccessToken called");
 		if (!this.accessToken || this.isTokenExpired()) {
 			await this.refreshAccessToken(scope);
+			console.log("getAccessToken ifStatement called");
 		}
 		return this.accessToken;
 	}
