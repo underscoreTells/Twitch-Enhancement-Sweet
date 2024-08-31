@@ -8,6 +8,7 @@ import {
 	nightbotClientSecret,
 	nightbotTokenURL,
 	nightbotRedirectURI,
+	nightbotAuthorizeURL,
 } from "../utils/constants";
 
 export class NightbotServiceHandler implements WebhookInterface {
@@ -36,12 +37,13 @@ export class NightbotServiceHandler implements WebhookInterface {
 			return;
 		}
 
-		try {
+		//TODO: Write this with authorize method
+		/*try {
 			this.commandToken = await this.authService.getAccessToken("commands");
 		} catch (error) {
 			const logger = Logger.getInstance();
 			logger.logError("authentication error for nightbot"); // TODO: Log error info
-		}
+		}*/
 	}
 
 	subscribe(event: string, subscriber: Subscriber): void {
@@ -69,8 +71,9 @@ export class NightbotServiceHandler implements WebhookInterface {
 			this.authService = new OAuth2AuthService(
 				nightbotClientID,
 				nightbotClientSecret,
-				nightbotTokenURL,
+				nightbotAuthorizeURL,
 				nightbotRedirectURI,
+				nightbotTokenURL,
 			);
 		} catch (error) {
 			Logger.getInstance().logError(`Undefined environment variable: ${error}`);

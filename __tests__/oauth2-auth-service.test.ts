@@ -1,6 +1,6 @@
 import { OAuth2AuthService } from "../src/backend/oauth2-auth-service";
 import { Logger } from "../src/backend/logger";
-import { RefreshTokenError } from "../src/backend/errors";
+import { TokenError } from "../src/backend/errors";
 
 jest.mock("../src/logger", () => {
 	return {
@@ -16,16 +16,18 @@ jest.mock("../src/logger", () => {
 describe("OAuth2AuthService", () => {
 	const clientId = "test-client-id";
 	const clientSecret = "test-client-secret";
-	const tokenUrl = "https://test-token-url.com";
+	const authorizeUrl = "https://test-authorize-url.com";
 	const redirectUri = "https://test-redirect-uri.com";
+	const tokenUrl = "https://test-token-url.com";
 	let service: OAuth2AuthService;
 
 	beforeEach(() => {
 		service = new OAuth2AuthService(
 			clientId,
 			clientSecret,
-			tokenUrl,
+			authorizeUrl,
 			redirectUri,
+			tokenUrl,
 		);
 
 		jest.spyOn(global, "fetch").mockResolvedValue({
@@ -44,12 +46,12 @@ describe("OAuth2AuthService", () => {
 
 	test("should call refreshAccessToken on first call", async () => {
 		const refreshAccessTokenSpy = jest.spyOn(service, "refreshAccessToken");
-		const toke = await service.getAccessToken("test-scope");
+		const toke = await service.getAccessToken();
 		expect(refreshAccessTokenSpy).toHaveBeenCalled();
 	});
 
 	test("should return null access token initially", async () => {
-		const token = await service.getAccessToken("test-scope");
+		const token = await service.getAccessToken();
 		expect(token).not.toBeNull();
 	});
 
@@ -65,9 +67,9 @@ describe("OAuth2AuthService", () => {
 
 		const isTokenExpiredSpy = jest.spyOn(service, "isTokenExpired");
 
-		await service.refreshAccessToken("test-scope");
+		await service.refreshAccessToken();
 
-		const token = await service.getAccessToken("test-scope");
+		const token = await service.getAccessToken();
 		expect(isTokenExpiredSpy).toHaveBeenCalled();
 	});
 
@@ -101,8 +103,9 @@ describe("OAuth2AuthService", () => {
 		const manualService = new OAuth2AuthService(
 			"clientId",
 			"clientSecret",
-			"tokenUrl",
+			"authorizeUrl",
 			"redirectUri",
+			"tokenUrl",
 		);
 
 		jest.spyOn(global, "fetch").mockResolvedValueOnce({
@@ -110,7 +113,7 @@ describe("OAuth2AuthService", () => {
 		} as Response);
 
 		console.log("About to call refreshAccessToken");
-		await manualService.refreshAccessToken("test-scope");
+		await manualService.refreshAccessToken();
 		console.log("Finished calling refreshAccessToken");
 	});
 });

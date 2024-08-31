@@ -1,6 +1,6 @@
 import type { Response } from "node-fetch";
 
-export class RefreshTokenError extends Error {
+export class TokenError extends Error {
 	response: Response;
 
 	constructor(message: string, response: Response) {

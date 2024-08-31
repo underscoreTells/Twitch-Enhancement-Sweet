@@ -1,5 +1,9 @@
+import type { Response } from "express";
+
 export interface AuthServiceInterface {
-	getAccessToken(scope: string): Promise<string | null>;
-	refreshAccessToken(scope: string): Promise<void>;
+	authorize(resposne: Response, scope: string, state: string): void;
+	getAccessToken(code?: string): Promise<string | null>;
+	exchangeCodeForToken(code: string): Promise<void>;
+	refreshAccessToken(): Promise<void>;
 	isTokenExpired(): boolean;
 }
