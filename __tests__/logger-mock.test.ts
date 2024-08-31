@@ -1,4 +1,4 @@
-import { Logger } from "../src/logger";
+import { Logger } from "../src/backend/logger";
 
 jest.mock("../src/logger", () => ({
 	Logger: {

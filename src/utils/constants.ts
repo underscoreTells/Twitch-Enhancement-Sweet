@@ -31,3 +31,9 @@ export const nightbotAuthorizeURL =
 	(() => {
 		throw new Error("AUTHORIZE_URL environment variable is not defined");
 	})();
+
+export const backEndAuthorizeURL =
+	process.env.BACKEND_AUTH_URL ??
+	(() => {
+		throw new Error("AUTHORIZE_URL environment variable is not defined");
+	})();
