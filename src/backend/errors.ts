@@ -1,4 +1,4 @@
-import type { Response } from "node-fetch";
+import type { Response } from "cross-fetch";
 
 export class TokenError extends Error {
 	response: Response;

@@ -1,9 +1,9 @@
 import type { AuthServiceInterface } from "./auth-service-interface";
 import { TokenError } from "./errors";
 import { Logger } from "./logger";
-import fetch, { Response as FetchResponse } from "node-fetch";
-import type { Response as ExpressResponse } from "express";
-import Response from "express";
+import fetch from "cross-fetch";
+import { Response } from "cross-fetch";
+import { exec } from "node:child_process";
 
 interface TokenResponse {
 	access_token: string;
@@ -29,8 +29,6 @@ export class OAuth2AuthService implements AuthServiceInterface {
 		redirectUri: string,
 		tokenUrl: string,
 	) {
-		this.bind();
-
 		this.clientId = clientId;
 		this.clientSecret = clientSecret;
 		this.authorizeUrl = authorizeUrl;
@@ -42,7 +40,7 @@ export class OAuth2AuthService implements AuthServiceInterface {
 		this.tokenExpiresIn = null;
 	}
 
-	authorize(response: ExpressResponse, scope: string, state: string): void {
+	authorize(scope: string, state: string): void {
 		const params = new URLSearchParams();
 		params.append("client_id", this.clientId);
 		params.append("redirect_uri", this.redirectUri);
@@ -51,14 +49,14 @@ export class OAuth2AuthService implements AuthServiceInterface {
 		params.append("state", state);
 
 		const authorizationUrl = `${this.authorizeUrl}?${params.toString()}`;
-		response.redirect(authorizationUrl);
+		this.openBrowser(authorizationUrl);
 	}
 
 	async getAccessToken(code?: string): Promise<string | null> {
-		if (!this.accessToken) {
+		if (this.accessToken == null) {
 			if (code === undefined)
 				throw new Error(
-					"No code was provided to fecth access token. Please provide code by authorizing with service",
+					"No code was provided to fetch access token. Please provide code by authorizing with service",
 				);
 
 			await this.exchangeCodeForToken(code);
@@ -86,13 +84,11 @@ export class OAuth2AuthService implements AuthServiceInterface {
 		params.append("grant_type", "authorization_code");
 		params.append("code", code);
 
-		const tokenData = await this.fetchToken(params);
-		this.accessToken = tokenData.access_token;
-		this.refreshToken = tokenData.refresh_token;
+		await this.updateTokenState(params);
 	}
 
 	async refreshAccessToken(): Promise<void> {
-		if (!this.refreshToken)
+		if (this.refreshToken == null)
 			throw new Error(`No refresh token available for ${this.authorizeUrl}`);
 
 		const params = new URLSearchParams();
@@ -102,9 +98,7 @@ export class OAuth2AuthService implements AuthServiceInterface {
 		params.append("refresh_token", this.refreshToken);
 		params.append("redirect_uri", this.redirectUri);
 
-		const tokenData = await this.fetchToken(params);
-		this.accessToken = tokenData.access_token;
-		this.refreshToken = tokenData.refresh_token;
+		await this.updateTokenState(params);
 	}
 
 	isTokenExpired(): boolean {
@@ -112,8 +106,9 @@ export class OAuth2AuthService implements AuthServiceInterface {
 	}
 
 	private async fetchToken(params: URLSearchParams): Promise<TokenResponse> {
-		let response = new FetchResponse();
+		let response = new Response();
 		let tryCounter = 0;
+		console.log(this.tokenUrl);
 
 		do {
 			response = await fetch(this.tokenUrl, {
@@ -125,7 +120,7 @@ export class OAuth2AuthService implements AuthServiceInterface {
 			});
 
 			if (!response.ok) tryCounter++;
-		} while (tryCounter < 3);
+		} while (!response.ok && tryCounter < 3);
 
 		const data = (await response.json()) as TokenResponse;
 		this.handleAuthError(response, data, tryCounter);
@@ -133,8 +128,19 @@ export class OAuth2AuthService implements AuthServiceInterface {
 		return data;
 	}
 
+	private openBrowser(url: string) {
+		const platform = process.platform;
+		if (platform === "win32") {
+			exec(`start ${url}`);
+		} else if (platform === "darwin") {
+			exec(`open ${url}`);
+		} else if (platform === "linux") {
+			exec(`xdg-open ${url}`);
+		}
+	}
+
 	private handleAuthError(
-		response: FetchResponse,
+		response: Response,
 		data: TokenResponse,
 		tryCounter: number,
 	): void {
@@ -153,13 +159,10 @@ export class OAuth2AuthService implements AuthServiceInterface {
 		}
 	}
 
-	private bind(): void {
-		this.authorize = this.authorize.bind(this);
-		this.getAccessToken = this.getAccessToken.bind(this);
-		this.exchangeCodeForToken = this.exchangeCodeForToken.bind(this);
-		this.refreshAccessToken = this.refreshAccessToken.bind(this);
-		this.isTokenExpired = this.isTokenExpired.bind(this);
-		this.fetchToken = this.fetchToken.bind(this);
-		this.handleAuthError = this.handleAuthError.bind(this);
+	private async updateTokenState(params: URLSearchParams): Promise<void> {
+		const tokenData = await this.fetchToken(params);
+		this.accessToken = tokenData.access_token;
+		this.refreshToken = tokenData.refresh_token;
+		this.tokenExpiresIn = Date.now() + tokenData.expires_in * 1000;
 	}
 }

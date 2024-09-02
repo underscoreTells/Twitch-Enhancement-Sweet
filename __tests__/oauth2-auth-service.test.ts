@@ -1,8 +1,10 @@
 import { OAuth2AuthService } from "../src/backend/oauth2-auth-service";
 import { Logger } from "../src/backend/logger";
 import { TokenError } from "../src/backend/errors";
+import * as childProcess from "node:child_process";
+import { mockServer } from "../src/mocks/mock-server";
 
-jest.mock("../src/logger", () => {
+jest.mock("../src/backend/logger", () => {
 	return {
 		Logger: {
 			getInstance: jest.fn().mockReturnValue({
@@ -18,8 +20,12 @@ describe("OAuth2AuthService", () => {
 	const clientSecret = "test-client-secret";
 	const authorizeUrl = "https://test-authorize-url.com";
 	const redirectUri = "https://test-redirect-uri.com";
-	const tokenUrl = "https://test-token-url.com";
+	const tokenUrl = "https://api.nightbot.tv/oauth2/token";
 	let service: OAuth2AuthService;
+
+	beforeAll(() => {
+		mockServer.listen();
+	});
 
 	beforeEach(() => {
 		service = new OAuth2AuthService(
@@ -29,91 +35,70 @@ describe("OAuth2AuthService", () => {
 			redirectUri,
 			tokenUrl,
 		);
-
-		jest.spyOn(global, "fetch").mockResolvedValue({
-			ok: true,
-			json: async () => ({
-				access_token: "mocked-access-token",
-				refresh_token: "mocked-refresh-token",
-				expires_in: 3600,
-			}),
-		} as Response);
 	});
 
 	afterEach(() => {
 		jest.clearAllMocks();
+		mockServer.resetHandlers();
 	});
 
-	test("should call refreshAccessToken on first call", async () => {
-		const refreshAccessTokenSpy = jest.spyOn(service, "refreshAccessToken");
-		const toke = await service.getAccessToken();
-		expect(refreshAccessTokenSpy).toHaveBeenCalled();
+	afterAll(() => {
+		mockServer.close();
 	});
 
-	test("should return null access token initially", async () => {
-		const token = await service.getAccessToken();
-		expect(token).not.toBeNull();
-	});
-
-	test("should refresh and return a new access token", async () => {
-		jest.spyOn(global, "fetch").mockResolvedValue({
-			ok: true,
-			json: async () => ({
-				access_token: "mocked-access-token",
-				refresh_token: "mocked-refresh-token",
-				expires_in: -1,
-			}),
-		} as Response);
-
-		const isTokenExpiredSpy = jest.spyOn(service, "isTokenExpired");
-
-		await service.refreshAccessToken();
-
-		const token = await service.getAccessToken();
-		expect(isTokenExpiredSpy).toHaveBeenCalled();
-	});
-
-	/*test("should throw an error and call logger", async () => {
-		jest.spyOn(global, "fetch").mockResolvedValueOnce({
-			ok: false, // First call: simulate a failed request
-		} as Response);
-		.mockResolvedValueOnce({
-				ok: false, // Second call: simulate another failed request
-			} as Response)
-			.mockResolvedValueOnce({
-				ok: true, // Third call: simulate a successful request
-				json: async () => ({
-					access_token: "mocked-access-token",
-					refresh_token: "mocked-refresh-token",
-					expires_in: 3600,
-				}),
-			} as Response)
-
-		const logger = Logger.getInstance();
-		const logErrorSpy = logger.logError;
-
-		await expect(service.refreshAccessToken("test-scope")).rejects.toThrow(
-			RefreshTokenError,
+	test("should throw an error if no access token was previously received and if no token code is provided", async () => {
+		await expect(service.getAccessToken()).rejects.toThrow(
+			"No code was provided to fetch access token. Please provide code by authorizing with service",
 		);
+	});
 
-		expect(logErrorSpy).toHaveBeenCalledWith("authentication error");
-	});*/
+	test("should call exchangeCodeForToken and return accessToken if code is provided to getAccessToken", async () => {
+		// biome-ignore lint/suspicious/noExplicitAny: <explanation>
+		jest.spyOn(service as any, "fetchToken").mockResolvedValue({
+			access_token: "mocked_access_token",
+			refresh_token: "mocked_refresh_token",
+		});
 
-	test("manual call to refreshAccessToken", async () => {
-		const manualService = new OAuth2AuthService(
-			"clientId",
-			"clientSecret",
-			"authorizeUrl",
-			"redirectUri",
-			"tokenUrl",
+		// Mocking isTokenExpired to always return false
+		jest.spyOn(service, "isTokenExpired").mockReturnValue(false);
+
+		const token = await service.getAccessToken("valid_code");
+
+		expect(token).toBe("mocked_access_token");
+		// biome-ignore lint/complexity/useLiteralKeys: <explanation>
+		expect(service["accessToken"]).toBe("mocked_access_token");
+	});
+
+	test("should refresh the access token if it has expired", async () => {
+		// Set an initial access token
+		// biome-ignore lint/complexity/useLiteralKeys: <explanation>
+		service["accessToken"] = "expired_token";
+		// biome-ignore lint/complexity/useLiteralKeys: <explanation>
+		service["refreshToken"] = "expired_token";
+		// biome-ignore lint/complexity/useLiteralKeys: <explanation>
+		service["tokenExpiresIn"] = -1;
+
+		console.log(tokenUrl);
+
+		// Call the method under test
+		const token = await service.getAccessToken();
+
+		// Assertions
+		expect(token).toBe("valid_access_token");
+	});
+
+	test("should return the access token if it is still valid", async () => {
+		// biome-ignore lint/complexity/useLiteralKeys: <explanation>
+		service["accessToken"] = "valid_access_token";
+
+		jest.spyOn(service, "isTokenExpired").mockReturnValue(false);
+
+		expect(await service.getAccessToken()).toBe("valid_access_token");
+	});
+
+	test("refreshAccessToken should throw if no refresh token was received from the API", async () => {
+		await expect(service.refreshAccessToken()).rejects.toThrow(
+			`No refresh token available for ${authorizeUrl}`,
 		);
-
-		jest.spyOn(global, "fetch").mockResolvedValueOnce({
-			ok: false, // First call: simulate a failed request
-		} as Response);
-
-		console.log("About to call refreshAccessToken");
-		await manualService.refreshAccessToken();
-		console.log("Finished calling refreshAccessToken");
 	});
 });

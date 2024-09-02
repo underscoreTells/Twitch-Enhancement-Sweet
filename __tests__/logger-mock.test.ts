@@ -1,6 +1,6 @@
 import { Logger } from "../src/backend/logger";
 
-jest.mock("../src/logger", () => ({
+jest.mock("../src/backend/logger", () => ({
 	Logger: {
 		getInstance: jest.fn().mockReturnValue({
 			logError: jest.fn(),
