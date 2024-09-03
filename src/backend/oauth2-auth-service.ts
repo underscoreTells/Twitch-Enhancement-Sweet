@@ -122,6 +122,8 @@ export class OAuth2AuthService implements AuthServiceInterface {
 			if (!response.ok) tryCounter++;
 		} while (!response.ok && tryCounter < 3);
 
+		console.log(response);
+
 		const data = (await response.json()) as TokenResponse;
 		this.handleAuthError(response, data, tryCounter);
 

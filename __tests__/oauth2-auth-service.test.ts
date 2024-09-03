@@ -3,6 +3,7 @@ import { Logger } from "../src/backend/logger";
 import { TokenError } from "../src/backend/errors";
 import * as childProcess from "node:child_process";
 import { mockServer } from "../src/mocks/mock-server";
+import { nightbotAuthorizeURL, nightbotTokenURL } from "../src/utils/constants";
 
 jest.mock("../src/backend/logger", () => {
 	return {
@@ -18,9 +19,9 @@ jest.mock("../src/backend/logger", () => {
 describe("OAuth2AuthService", () => {
 	const clientId = "test-client-id";
 	const clientSecret = "test-client-secret";
-	const authorizeUrl = "https://test-authorize-url.com";
+	const authorizeUrl = nightbotAuthorizeURL;
 	const redirectUri = "https://test-redirect-uri.com";
-	const tokenUrl = "https://api.nightbot.tv/oauth2/token";
+	const tokenUrl = nightbotTokenURL;
 	let service: OAuth2AuthService;
 
 	beforeAll(() => {
@@ -53,20 +54,16 @@ describe("OAuth2AuthService", () => {
 	});
 
 	test("should call exchangeCodeForToken and return accessToken if code is provided to getAccessToken", async () => {
-		// biome-ignore lint/suspicious/noExplicitAny: <explanation>
-		jest.spyOn(service as any, "fetchToken").mockResolvedValue({
-			access_token: "mocked_access_token",
-			refresh_token: "mocked_refresh_token",
-		});
-
+		const exchangeCode = jest.spyOn(service, "exchangeCodeForToken");
 		// Mocking isTokenExpired to always return false
 		jest.spyOn(service, "isTokenExpired").mockReturnValue(false);
 
 		const token = await service.getAccessToken("valid_code");
 
-		expect(token).toBe("mocked_access_token");
+		expect(exchangeCode).toHaveBeenCalled();
+		expect(token).toBe("valid_access_token");
 		// biome-ignore lint/complexity/useLiteralKeys: <explanation>
-		expect(service["accessToken"]).toBe("mocked_access_token");
+		expect(service["accessToken"]).toBe("valid_access_token");
 	});
 
 	test("should refresh the access token if it has expired", async () => {
