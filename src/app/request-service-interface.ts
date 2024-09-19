@@ -1,3 +1,1 @@
-export interface RequestServiceInterface {
-
-}
+export interface RequestServiceInterface {}
