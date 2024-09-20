@@ -1,16 +1,19 @@
 import { Mutex } from "async-mutex";
 import { Logger } from "./logger";
+import type { WorkerMessage } from "./file-worker-manager";
 
-class FileLockManager {
+export class FileLockManager {
 	private static _instance: FileLockManager | null = null;
 	private static _mutex = new Mutex();
 	private static _checkFilePermissionMutex = new Mutex();
 	private locks: Map<string, boolean>;
-	private queues: Map<string, Worker[]>; //TODO: won't be queue of worker, but queue of file writers (whatever the object name ends up as).
+	private queues: Map<string, Worker[]>;
+	private messages: Map<Worker, WorkerMessage>;
 
 	private constructor() {
 		this.locks = new Map();
 		this.queues = new Map();
+		this.messages = new Map();
 	}
 
 	public static async getInstance(): Promise<FileLockManager> {
@@ -30,14 +33,17 @@ class FileLockManager {
 	public async getFilePermission(
 		worker: Worker,
 		reference: string,
+		message: WorkerMessage,
 	): Promise<boolean> {
 		await FileLockManager._mutex.acquire();
 		let available = false;
 
 		try {
 			available = await this.checkFilePermission(reference);
-			if (!available) this.queue(worker, reference);
-			else this.locks.set(reference, false);
+			if (!available) {
+				await this.queue(worker, reference, message);
+				this.messages.set(worker, message);
+			} else this.locks.set(reference, false);
 		} finally {
 			FileLockManager._mutex.release();
 		}
@@ -68,14 +74,21 @@ class FileLockManager {
 		return available;
 	}
 
-	public async queue(worker: Worker, reference: string): Promise<void> {
+	public async queue(
+		worker: Worker,
+		reference: string,
+		message: WorkerMessage,
+	): Promise<void> {
 		const available = await this.checkFilePermission(reference);
 
 		if (available) await this.executeWorkerIO(worker, reference);
 		else {
 			const queue = this.queues.get(reference);
 
-			if (queue !== undefined) queue.push(worker);
+			if (queue !== undefined && queue.indexOf(worker) !== -1)
+				queue.push(worker);
+
+			this.messages.set(worker, message);
 		}
 	}
 
@@ -85,24 +98,28 @@ class FileLockManager {
 		if (queue !== undefined && queue.length > 0) {
 			const index = queue.indexOf(worker);
 
-			if (index !== -1) queue.splice(index, 1);
+			if (index !== -1) {
+				queue.splice(index, 1);
+				this.messages.delete(worker);
+			}
 		}
 	}
 
-	public async release(worker: Worker, reference: string): Promise<void> {
+	public async release(reference: string): Promise<void> {
 		await FileLockManager._checkFilePermissionMutex.acquire();
 		try {
-			const queue = this.queues.get(reference);
 			let lock = this.locks.get(reference);
 
-			if (queue !== undefined && queue.length > 0)
-				await this.executeWorkerIO(queue[0], reference);
-			else if (lock !== undefined) {
+			if (lock !== undefined) {
 				lock = true;
 			}
 		} finally {
 			FileLockManager._checkFilePermissionMutex.release();
 		}
+
+		const queue = this.queues.get(reference);
+		if (queue !== undefined && queue.length > 0)
+			await this.executeWorkerIO(queue[0], reference);
 	}
 
 	private addFile(reference: string): void {
@@ -115,9 +132,9 @@ class FileLockManager {
 		worker: Worker,
 		reference: string,
 	): Promise<void> {
-		//TODO: call worker write/read file
-		const queue = this.queues.get(reference);
+		const message = this.messages.get(worker);
 
+		worker.postMessage(message);
 		this.dequeue(worker, reference);
 	}
 }
