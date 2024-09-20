@@ -19,20 +19,19 @@ if (parentPort && parentPort !== null) {
 			try {
 				if (action === "read") {
 					const result = await handler.read(filePath);
-					// biome-ignore lint/style/noNonNullAssertion: <explanation>
-					parentPort!.postMessage(result);
+					parentPort?.postMessage({ type: "success", data: result });
 				} else if (action === "write") {
 					await handler.write(filePath, data);
-					// biome-ignore lint/style/noNonNullAssertion: <explanation>
-					parentPort!.postMessage("Write successful");
+					parentPort?.postMessage({
+						type: "success",
+						message: "Write successful",
+					});
 				}
 			} catch (error) {
-				// biome-ignore lint/style/noNonNullAssertion: <explanation>
-				parentPort!.postMessage(`Error: ${error}`);
+				parentPort?.postMessage({ type: "error", error: `${error}` });
 			}
 		} else {
-			// biome-ignore lint/style/noNonNullAssertion: <explanation>
-			parentPort!.postMessage("Unknown file type");
+			parentPort?.postMessage({ type: "error", error: "Unknown file type" });
 		}
 	});
 }

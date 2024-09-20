@@ -1,5 +1,6 @@
 import { Mutex } from "async-mutex";
 import { Logger } from "./logger";
+import type { Worker } from "node:worker_threads";
 import type { WorkerMessage } from "./file-worker-manager";
 
 export class FileLockManager {
@@ -128,10 +129,7 @@ export class FileLockManager {
 		this.locks.set(reference, true);
 	}
 
-	private async executeWorkerIO(
-		worker: Worker,
-		reference: string,
-	): Promise<void> {
+	private executeWorkerIO(worker: Worker, reference: string): void {
 		const message = this.messages.get(worker);
 
 		worker.postMessage(message);

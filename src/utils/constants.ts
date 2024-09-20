@@ -37,3 +37,5 @@ export const nightbotAuthorizeURL =
 			"NIGHTBOT_AUTHORIZE_URL environment variable is not defined",
 		);
 	})();
+
+export const MAXFILEWORKERS = 10;
