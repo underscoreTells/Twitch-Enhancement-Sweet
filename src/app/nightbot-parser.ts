@@ -7,7 +7,8 @@ export class NightbotParser implements RequestParser {
 
 		message.event = data.query.message as string;
 		message.time = data.query.time as string;
-		message.user = data.query.user as string;
+		message.user_login = data.query.user_login as string;
+		message.user_name = data.query.user_name as string;
 
 		return message;
 	}

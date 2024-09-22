@@ -1,8 +1,9 @@
 import { Logger } from "./logger";
+import type { Message } from "./request-parser-interface";
 
 export type Subscriber = {
 	name: () => string;
-	execute: () => void;
+	execute: (message: Message) => void;
 };
 
 export class SubscriptionService {
@@ -55,20 +56,20 @@ export class SubscriptionService {
 		logger.log("tried to unsubscribe from undefined subscriber set");
 	}
 
-	notify(event: string): void {
+	notify(message: Message): void {
 		const logger = Logger.getInstance();
 
-		if (this.isEmpty(event)) {
+		if (this.isEmpty(message.event)) {
 			logger.log(
 				`Notifying for unexisting event: ${event}. No notification was sent`,
 			);
 			return;
 		}
 
-		const eventSubscribers = this.subscribers.get(event);
+		const eventSubscribers = this.subscribers.get(message.event);
 
 		if (eventSubscribers !== undefined) {
-			for (const subscriber of eventSubscribers) subscriber.execute();
+			for (const subscriber of eventSubscribers) subscriber.execute(message);
 		}
 	}
 

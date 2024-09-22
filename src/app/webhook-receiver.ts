@@ -1,4 +1,3 @@
-import type { WebSocket } from "ws";
 import type { CommsReceiverInterface } from "./comms-receiver-service-interface";
 import { HttpHandlerFactory } from "./http-handler-factory";
 import type { Application, Request, Response } from "express";

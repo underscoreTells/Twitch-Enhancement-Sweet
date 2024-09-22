@@ -3,7 +3,7 @@ import { type Subscriber, SubscriptionService } from "./subscription-service";
 import type { Request, Response, Application } from "express";
 import { Logger } from "./logger";
 import type { CommsReceiverInterface } from "./comms-receiver-service-interface";
-import type { RequestParser } from "./request-parser-interface";
+import type { Message, RequestParser } from "./request-parser-interface";
 
 export class WebhookHandler implements EventHandlerInterface {
 	private server: CommsReceiverInterface;
@@ -40,13 +40,13 @@ export class WebhookHandler implements EventHandlerInterface {
 		if (message.event === "")
 			throw new Error("Empty event in message received in webhook");
 
-		this.notify(this.parser.getEventBody(request).event);
+		this.notify(message);
 		response
 			.status(200)
 			.send("Messaged received and subscriber services notified");
 	}
 
-	private notify(event: string): void {
-		this.subscriptionService.notify(event);
+	private notify(message: Message): void {
+		this.subscriptionService.notify(message);
 	}
 }
