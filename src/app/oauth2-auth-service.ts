@@ -1,9 +1,9 @@
 import type { AuthServiceInterface } from "./auth-service-interface";
 import { TokenError } from "./errors";
 import { Logger } from "./logger";
-import fetch from "cross-fetch";
-import { Response } from "cross-fetch";
 import { exec } from "node:child_process";
+import type { RequestServiceInterface } from "./request-service-interface";
+import { HttpRequestService } from "./http-request-service";
 
 interface TokenResponse {
 	access_token: string;
@@ -21,20 +21,23 @@ export class OAuth2AuthService implements AuthServiceInterface {
 	private accessToken: string | null;
 	private refreshToken: string | null;
 	private tokenExpiresIn: number | null;
+	private requestService: RequestServiceInterface;
 
-	constructor(...args: string[]) {
-		this.clientId = args[0];
-		this.clientSecret = args[1];
-		this.authorizeUrl = args[2];
-		this.redirectUri = args[3];
-		this.tokenUrl = args[4];
+	constructor(args: Record<string, string>) {
+		this.clientId = args.clientId;
+		this.clientSecret = args.clientSecret;
+		this.authorizeUrl = args.authorizeUrl;
+		this.redirectUri = args.redirectUri;
+		this.tokenUrl = args.tokenUrl;
 
 		this.accessToken = null;
 		this.refreshToken = null;
 		this.tokenExpiresIn = null;
+
+		this.requestService = new HttpRequestService();
 	}
 
-	authorize(scope: string, state: string): void {
+	public authorize(scope: string, state: string): void {
 		const params = new URLSearchParams();
 		params.append("client_id", this.clientId);
 		params.append("redirect_uri", this.redirectUri);
@@ -46,7 +49,7 @@ export class OAuth2AuthService implements AuthServiceInterface {
 		this.openBrowser(authorizationUrl);
 	}
 
-	async getAccessToken(code?: string): Promise<string | null> {
+	public async getAccessToken(code?: string): Promise<string | null> {
 		if (this.accessToken == null) {
 			if (code === undefined)
 				throw new Error(
@@ -70,27 +73,29 @@ export class OAuth2AuthService implements AuthServiceInterface {
 		return this.accessToken;
 	}
 
-	async exchangeCodeForToken(code: string): Promise<void> {
-		const params = new URLSearchParams();
-		params.append("client_id", this.clientId);
-		params.append("client_secret", this.clientSecret);
-		params.append("redirect_uri", this.redirectUri);
-		params.append("grant_type", "authorization_code");
-		params.append("code", code);
+	public async exchangeCodeForToken(code: string): Promise<void> {
+		const params = {
+			client_id: this.clientId,
+			client_secret: this.clientSecret,
+			redirect_uri: this.redirectUri,
+			grant_type: "authorization_code",
+			code: code,
+		};
 
 		await this.updateTokenState(params);
 	}
 
-	async refreshAccessToken(): Promise<void> {
+	public async refreshAccessToken(): Promise<void> {
 		if (this.refreshToken == null)
 			throw new Error(`No refresh token available for ${this.authorizeUrl}`);
 
-		const params = new URLSearchParams();
-		params.append("client_id", this.clientId);
-		params.append("client_secret", this.clientSecret);
-		params.append("grant_type", "refresh_token");
-		params.append("refresh_token", this.refreshToken);
-		params.append("redirect_uri", this.redirectUri);
+		const params = {
+			client_id: this.clientId,
+			client_secret: this.clientSecret,
+			grant_type: "refresh_token",
+			refresh_token: this.refreshToken,
+			redirect_uri: this.redirectUri,
+		};
 
 		await this.updateTokenState(params);
 	}
@@ -99,26 +104,29 @@ export class OAuth2AuthService implements AuthServiceInterface {
 		return Date.now() >= (this.tokenExpiresIn ?? 0);
 	}
 
-	private async fetchToken(params: URLSearchParams): Promise<TokenResponse> {
-		let response = new Response();
+	private async fetchToken(
+		params: Record<string, string>,
+	): Promise<TokenResponse> {
+		const methodArguments = {
+			url: this.tokenUrl,
+			method: "POST",
+			headers: {
+				"Content-Type": "application/x-www-form-urlencoded",
+			},
+			body: params,
+		};
+
+		// biome-ignore lint/suspicious/noExplicitAny: <explanation>
+		let response: any;
 		let tryCounter = 0;
-		console.log(this.tokenUrl);
 
 		do {
-			response = await fetch(this.tokenUrl, {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/x-www-form-urlencoded",
-				},
-				body: params.toString(),
-			});
+			response = await this.requestService.sendRequest(methodArguments);
 
-			if (!response.ok) tryCounter++;
+			tryCounter++;
 		} while (!response.ok && tryCounter < 3);
 
-		console.log(response);
-
-		const data = (await response.json()) as TokenResponse;
+		const data = response as TokenResponse;
 		this.handleAuthError(response, data, tryCounter);
 
 		return data;
@@ -155,7 +163,9 @@ export class OAuth2AuthService implements AuthServiceInterface {
 		}
 	}
 
-	private async updateTokenState(params: URLSearchParams): Promise<void> {
+	private async updateTokenState(
+		params: Record<string, string>,
+	): Promise<void> {
 		const tokenData = await this.fetchToken(params);
 		this.accessToken = tokenData.access_token;
 		this.refreshToken = tokenData.refresh_token;

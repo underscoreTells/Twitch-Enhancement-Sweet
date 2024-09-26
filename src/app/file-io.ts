@@ -3,7 +3,12 @@ export abstract class FileIO {
 	protected data: any;
 
 	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
-	receiveData(data: any): void {
+	public receiveData(data: any): void {
 		this.data = data;
+	}
+
+	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
+	public getData(): any {
+		return this.data;
 	}
 }

@@ -17,9 +17,7 @@ export class FileWorkerManager {
 
 	constructor(workerFile: string) {
 		// Initialize the worker with the given worker file (e.g., json-worker.js, text-worker.js)
-		this.worker = new Worker(
-			path.resolve(__dirname, "../../lib/app", workerFile),
-		);
+		this.worker = new Worker(path.resolve(__dirname, workerFile));
 		this.currentFilePath = "";
 
 		// Listen for messages from the worker
@@ -62,6 +60,7 @@ export class FileWorkerManager {
 			data: data,
 		};
 
+		this.callingObject = callingObject;
 		this.sendMessage(filePath, workerMessage);
 	}
 

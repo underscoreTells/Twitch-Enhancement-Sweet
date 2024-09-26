@@ -87,13 +87,13 @@ export class WebhookReceiver implements CommsReceiverInterface {
 	// biome-ignore lint/complexity/noBannedTypes: <explanation>
 	private assignRequest(event: string, handler: Function, path: string): void {
 		switch (event) {
-			case "post":
+			case "POST":
 				this.server.post(
 					path,
 					new HttpHandlerFactory().getHandlerFunction(handler),
 				);
 				break;
-			case "get":
+			case "GET":
 				this.server.get(
 					path,
 					new HttpHandlerFactory().getHandlerFunction(handler),

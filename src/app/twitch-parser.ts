@@ -47,7 +47,7 @@ export class NightbotParser implements RequestParser {
 		return this.prepObject(data)[1];
 	}
 
-	private revocation(data): Message {
+	private revocation(data: string): Message {
 		const jsonObject = this.prepObject(data)[0];
 		const message = this.prepObject(data)[1];
 
