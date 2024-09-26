@@ -12,5 +12,4 @@ export interface EventHandlerInterface {
 		subscriber: Subscriber,
 		service: ThirdPartyService,
 	): void;
-	setOwningService(service: ThirdPartyService): void;
 }

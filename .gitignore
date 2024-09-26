@@ -9,6 +9,8 @@ tsconfig.json
 # Config files
 .editorconfig
 jest.config.js
+.vscode/
+.biomeignore
 
 # JavaScript output
 lib/

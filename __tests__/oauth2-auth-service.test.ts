@@ -1,6 +1,6 @@
-import { OAuth2AuthService } from "../src/backend/oauth2-auth-service";
-import { Logger } from "../src/backend/logger";
-import { TokenError } from "../src/backend/errors";
+import { OAuth2AuthService } from "../src/app/oauth2-auth-service";
+import { Logger } from "../src/app/logger";
+import { TokenError } from "../src/app/errors";
 import * as childProcess from "node:child_process";
 import { mockServer } from "../src/mocks/mock-server";
 import { nightbotAuthorizeURL, nightbotTokenURL } from "../src/utils/constants";
@@ -29,13 +29,13 @@ describe("OAuth2AuthService", () => {
 	});
 
 	beforeEach(() => {
-		service = new OAuth2AuthService(
-			clientId,
-			clientSecret,
-			authorizeUrl,
-			redirectUri,
-			tokenUrl,
-		);
+		service = new OAuth2AuthService({
+			clientId: clientId,
+			clientSecret: clientSecret,
+			authorizeUrl: authorizeUrl,
+			redirectUri: redirectUri,
+			tokenUrl: tokenUrl,
+		});
 	});
 
 	afterEach(() => {

@@ -12,7 +12,6 @@ export class WebhookHandler implements EventHandlerInterface {
 	private subscriptionService: SubscriptionService;
 	private callbackPath: string;
 	private parser: RequestParser;
-	private owningServce: ThirdPartyService | null;
 
 	constructor(
 		expressApp: CommsReceiverInterface,
@@ -23,7 +22,6 @@ export class WebhookHandler implements EventHandlerInterface {
 		this.subscriptionService = new SubscriptionService();
 		this.parser = parser;
 		this.callbackPath = callbackPath;
-		this.owningServce = null;
 
 		this.receive = this.receive.bind(this);
 		this.server.addHandler("POST", this.receive, `${this.callbackPath}/`);
@@ -50,18 +48,11 @@ export class WebhookHandler implements EventHandlerInterface {
 		this.subscriptionService.unsubscribe(event, subscriber, service);
 	}
 
-	public setOwningService(service: ThirdPartyService): void {
-		this.owningServce = service;
-	}
-
 	private receive(request: Request, response: Response): void {
 		const message = this.parser.getEventBody(request);
 
 		if (message.event === "")
 			throw new Error("Empty event in message received in webhook");
-
-		if (this.owningServce === null)
-			throw new Error("No owning service set for event handler");
 
 		this.notify(message);
 		response
@@ -74,9 +65,6 @@ export class WebhookHandler implements EventHandlerInterface {
 
 		if (message.event === "")
 			throw new Error("Empty event in message received in webhook");
-
-		if (this.owningServce === null)
-			throw new Error("No owning service set for event handler");
 
 		this.notify(message);
 		response

@@ -13,7 +13,6 @@ export * from "./app/file-worker-manager";
 export * from "./app/file-worker";
 export * from "./app/handler-function-factory-interface";
 export * from "./app/http-handler-factory";
-export * from "./app/http-request-service";
 export * from "./app/json-file-handler";
 export * from "./app/logger";
 export * from "./app/nightbot-parser";

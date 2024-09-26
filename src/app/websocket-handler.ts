@@ -9,13 +9,11 @@ export class WebsocketHandler implements EventHandlerInterface {
 	private subscriptionService: SubscriptionService;
 	private websocket: CommsReceiverInterface;
 	private parser: RequestParser;
-	private owningService: ThirdPartyService | null;
 
 	constructor(websocket: CommsReceiverInterface, parser: RequestParser) {
 		this.subscriptionService = new SubscriptionService();
 		this.websocket = websocket;
 		this.parser = parser;
-		this.owningService = null;
 
 		this.receive = this.receive.bind(this);
 		this.websocket.addHandler("message", this.receive);
@@ -37,10 +35,6 @@ export class WebsocketHandler implements EventHandlerInterface {
 		this.subscriptionService.unsubscribe(event, subscriber, service);
 	}
 
-	public setOwningService(service: ThirdPartyService): void {
-		this.owningService = service;
-	}
-
 	public addHandler(
 		requestType: string,
 		// biome-ignore lint/complexity/noBannedTypes: <explanation>
@@ -56,13 +50,10 @@ export class WebsocketHandler implements EventHandlerInterface {
 		if (message.event === "")
 			throw new Error("Empty event in message received in webhook");
 
-		if (this.owningService === null)
-			throw new Error("Owning service not set for event handler");
-
-		this.notify(message, this.owningService);
+		this.notify(message);
 	}
 
-	private notify(message: Message, callingService: ThirdPartyService): void {
-		this.subscriptionService.notify(message, callingService);
+	private notify(message: Message): void {
+		this.subscriptionService.notify(message);
 	}
 }

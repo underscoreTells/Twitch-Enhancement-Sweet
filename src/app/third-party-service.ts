@@ -18,7 +18,6 @@ export class ThirdPartyService {
 	) {
 		this.authService = authService;
 		this.eventHandler = eventHandler;
-		this.eventHandler.setOwningService(this);
 		this.requestService = requestService;
 		this.authToken = "";
 		this.subscriberSecret = "";

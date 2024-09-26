@@ -1,4 +1,5 @@
 import * as MyApp from "./index";
+import "reflect-metadata";
 import express from "express";
 import WebSocket, { WebSocketServer } from "ws";
 
