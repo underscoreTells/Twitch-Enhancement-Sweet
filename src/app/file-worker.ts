@@ -19,19 +19,19 @@ if (parentPort && parentPort !== null) {
 			try {
 				if (action === "read") {
 					const result = await handler.read(filePath);
-					parentPort?.postMessage({ type: "success", data: result });
+					parentPort?.postMessage({ result: "success", data: result });
 				} else if (action === "write") {
 					await handler.write(filePath, data);
 					parentPort?.postMessage({
-						type: "success",
+						result: "success",
 						message: "Write successful",
 					});
 				}
 			} catch (error) {
-				parentPort?.postMessage({ type: "error", error: `${error}` });
+				parentPort?.postMessage({ result: "error", error: `${error}` });
 			}
 		} else {
-			parentPort?.postMessage({ type: "error", error: "Unknown file type" });
+			parentPort?.postMessage({ result: "error", error: "Unknown file type" });
 		}
 	});
 }

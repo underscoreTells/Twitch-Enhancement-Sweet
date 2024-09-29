@@ -1,63 +1,81 @@
-import type { AuthServiceInterface } from "./auth-service-interface";
+import type {
+	AuthServiceInterface,
+	TokenResponse,
+	ServiceInfo,
+} from "./auth-service-interface";
 import { TokenError } from "./errors";
 import { Logger } from "./logger";
 import { exec } from "node:child_process";
 import type { RequestServiceInterface } from "./request-service-interface";
 import { HttpRequestService } from "./http-request-service";
+import { injectable } from "tsyringe";
+import type { Application } from "express";
 
-interface TokenResponse {
-	access_token: string;
-	refresh_token: string;
-	token_type: string;
-	expires_in: number;
-}
-
+@injectable()
 export class OAuth2AuthService implements AuthServiceInterface {
-	private clientId: string;
-	private clientSecret: string;
-	private tokenUrl: string;
-	private authorizeUrl: string;
-	private redirectUri: string;
-	private accessToken: string | null;
-	private refreshToken: string | null;
-	private tokenExpiresIn: number | null;
+	private service: ServiceInfo;
 	private requestService: RequestServiceInterface;
+	private callbackResolver: (value: string) => void;
 
-	constructor(args: Record<string, string>) {
-		this.clientId = args.clientId;
-		this.clientSecret = args.clientSecret;
-		this.authorizeUrl = args.authorizeUrl;
-		this.redirectUri = args.redirectUri;
-		this.tokenUrl = args.tokenUrl;
-
-		this.accessToken = null;
-		this.refreshToken = null;
-		this.tokenExpiresIn = null;
+	constructor(
+		service: ServiceInfo,
+		serviceName: string,
+		private server: Application,
+	) {
+		this.service = service;
 
 		this.requestService = new HttpRequestService();
+		this.callbackResolver = (value: string) => {
+			return "";
+		};
+
+		this.server.post(`/auth/${serviceName}`, (req, res) => {
+			const { code, error } = req.query;
+
+			if (error) {
+				const errorMessage = `Authorization failed with error: ${error}`;
+				res.status(400).json({ error: errorMessage });
+				Logger.getInstance().logError(
+					`invalid auth request for ${serviceName}. Received error instead of auth code when authenticating`,
+				);
+				return;
+			}
+
+			if (code !== undefined) {
+				res.status(200).json({ success: true, code });
+				this.callbackResolver(code as string);
+			} else {
+				res.status(400).json({ error: "Authorization code not found" });
+				this.callbackResolver("access_denied");
+			}
+		});
 	}
 
-	public authorize(scope: string, state: string): void {
+	public authorize(scope: string, state: string): Promise<string> {
 		const params = new URLSearchParams();
-		params.append("client_id", this.clientId);
-		params.append("redirect_uri", this.redirectUri);
+		params.append("client_id", this.service.clientId);
+		params.append("redirect_uri", this.service.redirectUri);
 		params.append("response_type", "code");
 		params.append("scope", scope);
 		params.append("state", state);
 
-		const authorizationUrl = `${this.authorizeUrl}?${params.toString()}`;
+		const authorizationUrl = `${this.service.authorizeUrl}?${params.toString()}`;
 		this.openBrowser(authorizationUrl);
+
+		return new Promise((resolve) => {
+			this.callbackResolver = resolve;
+		});
 	}
 
-	public async getAccessToken(code?: string): Promise<string | null> {
-		if (this.accessToken == null) {
+	public async getAccessToken(code?: string): Promise<ServiceInfo | null> {
+		if (this.service.accessToken == null) {
 			if (code === undefined)
 				throw new Error(
 					"No code was provided to fetch access token. Please provide code by authorizing with service",
 				);
 
 			await this.exchangeCodeForToken(code);
-			return this.accessToken;
+			return this.service;
 		}
 
 		if (this.isTokenExpired()) {
@@ -67,17 +85,17 @@ export class OAuth2AuthService implements AuthServiceInterface {
 				Logger.getInstance().logError(`refresh access token error: ${error}`);
 			}
 
-			return this.accessToken;
+			return this.service;
 		}
 
-		return this.accessToken;
+		return this.service;
 	}
 
 	public async exchangeCodeForToken(code: string): Promise<void> {
 		const params = {
-			client_id: this.clientId,
-			client_secret: this.clientSecret,
-			redirect_uri: this.redirectUri,
+			client_id: this.service.clientId,
+			client_secret: this.service.clientSecret,
+			redirect_uri: this.service.redirectUri,
 			grant_type: "authorization_code",
 			code: code,
 		};
@@ -86,29 +104,31 @@ export class OAuth2AuthService implements AuthServiceInterface {
 	}
 
 	public async refreshAccessToken(): Promise<void> {
-		if (this.refreshToken == null)
-			throw new Error(`No refresh token available for ${this.authorizeUrl}`);
+		if (this.service.refreshToken == null)
+			throw new Error(
+				`No refresh token available for ${this.service.authorizeUrl}`,
+			);
 
 		const params = {
-			client_id: this.clientId,
-			client_secret: this.clientSecret,
+			client_id: this.service.clientId,
+			client_secret: this.service.clientSecret,
 			grant_type: "refresh_token",
-			refresh_token: this.refreshToken,
-			redirect_uri: this.redirectUri,
+			refresh_token: this.service.refreshToken,
+			redirect_uri: this.service.redirectUri,
 		};
 
 		await this.updateTokenState(params);
 	}
 
-	isTokenExpired(): boolean {
-		return Date.now() >= (this.tokenExpiresIn ?? 0);
+	public isTokenExpired(): boolean {
+		return Date.now() >= (this.service.tokenExpiresIn ?? 0);
 	}
 
 	private async fetchToken(
 		params: Record<string, string>,
 	): Promise<TokenResponse> {
 		const methodArguments = {
-			url: this.tokenUrl,
+			url: this.service.tokenUrl,
 			method: "POST",
 			headers: {
 				"Content-Type": "application/x-www-form-urlencoded",
@@ -150,14 +170,14 @@ export class OAuth2AuthService implements AuthServiceInterface {
 	): void {
 		if (!response.ok) {
 			throw new TokenError(
-				`response.ok = false when trying to refresh token with ${this.tokenUrl}. Tried to refresh ${tryCounter} times`,
+				`response.ok = false when trying to refresh token with ${this.service.tokenUrl}. Tried to refresh ${tryCounter} times`,
 				response,
 			);
 		}
 
 		if (!data.access_token) {
 			throw new TokenError(
-				`no access_token in data when refreshing access token for ${this.tokenUrl}`,
+				`no access_token in data when refreshing access token for ${this.service.tokenUrl}`,
 				response,
 			);
 		}
@@ -167,8 +187,8 @@ export class OAuth2AuthService implements AuthServiceInterface {
 		params: Record<string, string>,
 	): Promise<void> {
 		const tokenData = await this.fetchToken(params);
-		this.accessToken = tokenData.access_token;
-		this.refreshToken = tokenData.refresh_token;
-		this.tokenExpiresIn = Date.now() + tokenData.expires_in * 1000;
+		this.service.accessToken = tokenData.access_token;
+		this.service.refreshToken = tokenData.refresh_token;
+		this.service.tokenExpiresIn = Date.now() + tokenData.expires_in * 1000;
 	}
 }

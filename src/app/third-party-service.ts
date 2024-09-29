@@ -1,4 +1,7 @@
-import type { AuthServiceInterface } from "./auth-service-interface";
+import type {
+	AuthServiceInterface,
+	ServiceInfo,
+} from "./auth-service-interface";
 import type { EventHandlerInterface } from "./event-handler-interface";
 import type { RequestServiceInterface } from "./request-service-interface";
 import type { Subscriber } from "./subscriber";
@@ -7,24 +10,42 @@ export class ThirdPartyService {
 	private authService: AuthServiceInterface;
 	private eventHandler: EventHandlerInterface;
 	private requestService: RequestServiceInterface;
-	private authToken: string;
+	private service: ServiceInfo;
 	private subscriberSecret: string;
 
-	//TODO: Instead of having a bunch of selector methods, implement DI
 	constructor(
 		authService: AuthServiceInterface,
 		eventHandler: EventHandlerInterface,
 		requestService: RequestServiceInterface,
+		service: ServiceInfo,
 	) {
 		this.authService = authService;
 		this.eventHandler = eventHandler;
 		this.requestService = requestService;
-		this.authToken = "";
+		this.service = service;
 		this.subscriberSecret = "";
 	}
 
 	public async authenticate(scope: string, state: string): Promise<void> {
-		this.authService.authorize(scope, state);
+		if (this.service.accessToken === null) {
+			const code = await this.authService.authorize(scope, state);
+			if (code === undefined || code === null)
+				throw new Error("undefined auth code received");
+
+			if (code === "access_denied")
+				throw new Error("access denied when trying to get auth code");
+
+			const service = await this.authService.getAccessToken(code);
+
+			if (service !== null) this.service = service;
+			else throw new Error("Received null auth token from auth service");
+		}
+
+		if (
+			this.service.tokenExpiresIn !== null &&
+			this.authService.isTokenExpired()
+		)
+			await this.authService.refreshAccessToken();
 	}
 
 	public subscribe(
@@ -49,15 +70,22 @@ export class ThirdPartyService {
 			this.eventHandler.unsubscribe(event, subscriber, this);
 	}
 
-	public request(): void {}
+	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
+	public async request(methodArguments: Record<string, any>): Promise<void> {
+		if (this.service.accessToken === "")
+			throw new Error(
+				`${this.service.serviceName} is not authenticated. Make sure to authenticate beofre making requests`,
+			);
 
-	public async receiveAuthCode(code: string): Promise<void> {
-		const authToken = await this.authService.getAccessToken(code);
+		if (this.authService.isTokenExpired())
+			await this.authService.refreshAccessToken();
 
-		if (authToken === null)
-			throw new Error("Auth Token not received. Received null instead");
+		methodArguments.headers = {
+			...methodArguments.headers,
+			Authorization: `Bearer ${this.service.accessToken}`,
+		};
 
-		this.authToken = authToken;
+		this.requestService.sendRequest(methodArguments);
 	}
 
 	public receiveSecret(secret: string): void {

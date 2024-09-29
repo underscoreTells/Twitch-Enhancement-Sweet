@@ -1,14 +1,14 @@
-import type { WebSocket } from "ws";
+import { WebSocket } from "ws";
 import type { CommsReceiverInterface } from "./comms-receiver-service-interface";
 import { WebsocketHandlerFactory } from "./websocket-handler-factory";
 
 export class WebsocketReceiver implements CommsReceiverInterface {
-	private websocket: WebSocket;
 	// biome-ignore lint/complexity/noBannedTypes: <explanation>
 	private handlers: Map<string, Function>;
+	private websocket: WebSocket;
 
-	constructor(websocket: WebSocket) {
-		this.websocket = websocket;
+	constructor(connectionUrl: string) {
+		this.websocket = new WebSocket(connectionUrl);
 		this.handlers = new Map();
 	}
 

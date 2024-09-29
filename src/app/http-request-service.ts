@@ -19,6 +19,23 @@ export class HttpRequestService implements RequestServiceInterface {
 			headers: requestHeaders,
 		};
 
+		// Only include body if method is POST, PUT, PATCH, or DELETE
+		if (
+			["POST", "PUT", "PATCH", "DELETE"].includes(method.toUpperCase()) &&
+			body
+		) {
+			const contentType = (
+				requestHeaders as Record<string, string | undefined>
+			)["Content-Type"];
+			if (contentType === "application/x-www-form-urlencoded") {
+				// Convert body to URL-encoded string format
+				requestOptions.body = new URLSearchParams(body).toString();
+			} else {
+				// Default to JSON encoding
+				requestOptions.body = JSON.stringify(body);
+			}
+		}
+
 		try {
 			const response = await fetch(url, requestOptions);
 

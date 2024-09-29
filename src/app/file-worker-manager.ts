@@ -4,6 +4,7 @@ import { FileLockManager } from "./file-locks";
 import type { FileIO } from "./file-io";
 
 export type WorkerMessage = {
+	type: string;
 	action: string;
 	filePath: string;
 	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
@@ -24,8 +25,14 @@ export class FileWorkerManager {
 		this.worker.on("message", (message) => {
 			console.log(`Received from worker: ${message}`);
 
-			if (this.callingObject != null && message?.data)
+			if (this.callingObject != null && message?.data) {
 				this.callingObject.receiveData(message.data);
+				return;
+			}
+
+			throw new Error(
+				`Object reading file ${this.currentFilePath} not defined. Can't return data to null object`,
+			);
 		});
 
 		// Listen for errors
@@ -51,22 +58,27 @@ export class FileWorkerManager {
 	public async read(
 		filePath: string,
 		callingObject: FileIO,
-		// biome-ignore lint/suspicious/noExplicitAny: <explanation>
-		data?: any,
+		type: string,
 	): Promise<void> {
 		const workerMessage: WorkerMessage = {
+			type: type,
 			action: "read",
 			filePath: filePath,
-			data: data,
+			data: "",
 		};
 
 		this.callingObject = callingObject;
 		this.sendMessage(filePath, workerMessage);
 	}
 
-	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
-	public async write(filePath: string, data?: any): Promise<void> {
+	public async write(
+		filePath: string,
+		type: string,
+		// biome-ignore lint/suspicious/noExplicitAny: <explanation>
+		data?: any,
+	): Promise<void> {
 		const workerMessage: WorkerMessage = {
+			type: type,
 			action: "write",
 			filePath: filePath,
 			data: data,

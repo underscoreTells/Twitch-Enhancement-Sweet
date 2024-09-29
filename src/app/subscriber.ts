@@ -8,6 +8,7 @@ export class Subscriber extends FileIO {
 	private name: string;
 	private subscribedEvents: Map<ThirdPartyService, Map<string, boolean>>;
 	private secret: string;
+
 	private subscriberFunction: (
 		message: Message,
 		subscriberObject: Subscriber,
@@ -15,7 +16,6 @@ export class Subscriber extends FileIO {
 
 	constructor(
 		name: string,
-		filePool: FileWorkerManagerPool,
 		execute: (message: Message, subscriberObject: Subscriber) => void,
 	) {
 		super();

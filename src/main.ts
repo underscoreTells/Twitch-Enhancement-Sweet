@@ -1,15 +1,19 @@
 import * as MyApp from "./index";
 import "reflect-metadata";
 import express from "express";
-import WebSocket, { WebSocketServer } from "ws";
+import { container } from "tsyringe";
+import * as Utils from "./utils/functions";
 
 const app = express();
 const port = 8080;
 
-const server = app.listen(port, () => {
+app.listen(port, () => {
 	MyApp.Logger.getInstance().log(
 		`Server is listening on http://localhost:${port}`,
 	);
 });
 
-const wss = new WebSocketServer({ server });
+container.registerInstance("Server", app); //TODO: fix injection
+
+const files = new MyApp.FileWorkerManagerPool();
+const servicesInfo = await Utils.initializeServices(files);

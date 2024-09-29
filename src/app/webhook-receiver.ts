@@ -2,14 +2,14 @@ import type { CommsReceiverInterface } from "./comms-receiver-service-interface"
 import { HttpHandlerFactory } from "./http-handler-factory";
 import type { Application, Request, Response } from "express";
 import { Logger } from "./logger";
+import { injectable } from "tsyringe";
 
+@injectable()
 export class WebhookReceiver implements CommsReceiverInterface {
-	private server: Application;
 	// biome-ignore lint/complexity/noBannedTypes: <explanation>
 	private handlers: Map<string, [Function, boolean]>;
 
-	constructor(server: Application) {
-		this.server = server;
+	constructor(private server: Application) {
 		this.handlers = new Map();
 	}
 
